@@ -10,7 +10,7 @@ import numpy as np
 
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
-DATADIR = '../data/'
+DATADIR = '../stats_data/'
 DB = os.path.join(DATADIR, 'Reference Standard', 'radiology_reports.sqlite')
 TABLE_NAMES = ('training_notes', 'testing_notes')
 
@@ -83,29 +83,43 @@ def preprocess(text):
     return text
 
 
-def transform_notes(notes):
-    vectorizer = CountVectorizer(notes, min_df=0.1, lowercase=True, stop_words='english',
-                                 ngram_range=(1, 3))
-    X = vectorizer.fit_transform(notes)
+def transform_notes(notes, vectorizer=None):
+    if not vectorizer:
+        vectorizer = CountVectorizer(notes, min_df=0.1, lowercase=True, stop_words='english',
+                                     ngram_range=(1, 3))
+        X = vectorizer.fit_transform(notes)
+    else:
+        X = vectorizer.transform(notes)
     return X, vectorizer
 
 
 def main():
     conn = sqlite.connect(DB)
     train_notes = pd.read_sql("SELECT * FROM training_notes;", conn)
+    test_notes = pd.read_sql("SELECT * FROM testing_notes;", conn)
     conn.close()
     print(train_notes.head())
     X = list(train_notes.text)
     y = list(train_notes.doc_class)
     X, vectorizer = transform_notes(X)
+    
+    X_test = list(test_notes.text)
+    y_test = list(test_notes.doc_class)
+    X_test, _ = transform_notes(X_test, vectorizer)
 
     print(X.shape)
+    print(X_test.shape)
 
     with open(os.path.join(DATADIR, 'train_data.pkl'), 'wb') as f:
         pickle.dump((X, y), f)
+        
+    with open(os.path.join(DATADIR, 'test_data.pkl'), 'wb') as f:
+        pickle.dump((X, y_test), f)
 
     with open(os.path.join(DATADIR, 'vectorizer.pkl'), 'wb') as f:
         pickle.dump(vectorizer, f)
+        
+    
 
 
 
